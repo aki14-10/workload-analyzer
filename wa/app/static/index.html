@@ -1,0 +1,98 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Workload Analyzer</title><style>
+:root{--navy:#0b1f3a;--teal:#0f8b8d;--g1:#f3f5f8;--g2:#d9dee6;--tx:#17212f;--red:#b3261e;--amb:#a15c00}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;color:var(--tx);background:var(--g1)}
+header{background:var(--navy);color:#fff;display:flex;align-items:center;gap:20px;padding:0 20px;height:44px}
+header b{font-weight:600}header span{margin-left:auto;font-size:12px;color:#9fb3cc}
+nav{display:flex;background:#fff;border-bottom:1px solid var(--g2);overflow-x:auto}
+nav button{border:0;background:none;padding:12px 18px;font:inherit;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;color:#44546a}
+nav button[aria-selected=true]{border-color:var(--teal);color:var(--navy);font-weight:600}
+main{max-width:1200px;margin:0 auto;padding:20px}section{display:none}section.on{display:block}
+.panel{background:#fff;border:1px solid var(--g2);padding:14px;margin-bottom:14px}h2{font-size:16px;margin:0 0 10px;color:var(--navy)}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 8px;border-bottom:1px solid var(--g2);text-align:left}th{background:var(--g1);font-weight:600}
+input,select{font:inherit;padding:4px 6px;border:1px solid #aab4c2;max-width:100%}td input{width:64px}td input.id{width:70px}
+button.b{font:inherit;padding:6px 12px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}button.b.s{background:#fff;color:var(--navy)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px}.msg{min-height:18px;font-size:13px}.err{color:var(--red)}
+.gantt{display:flex;align-items:center;margin:4px 0;overflow-x:auto}.gantt .l{width:60px;flex:none;font-weight:600}
+.c{width:22px;height:22px;flex:none;border:1px solid #fff;font-size:10px;text-align:center;line-height:22px;color:#fff;background:var(--teal)}.c.i{background:var(--g2)}
+.t-Low\ Risk{color:#1a6b3a}.t-At\ Risk{color:var(--amb)}.t-Likely\ to\ Miss{color:var(--red);font-weight:600}
+.bar{height:12px;background:var(--teal);display:inline-block;vertical-align:middle}.bar.a{background:var(--navy)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style></head><body>
+<header><b>Workload Analyzer</b><small>Adaptive Cloud Task Scheduler</small><span id="stat">Loading</span></header>
+<nav role="tablist" id="nav"></nav><main>
+<section id="s0"><div class="panel"><h2>Workload Design</h2><div class="row">
+<label>Sample workload <select id="pre"></select></label><button class="b s" id="loadp">Load sample</button>
+<button class="b s" id="addt">Add task</button><button class="b s" id="exp">Export JSON</button><label>Import JSON <input type="file" id="imp" accept=".json"></label></div>
+<div style="overflow-x:auto"><table id="tt"></table></div><div class="row" style="margin-top:10px"><button class="b" id="savew">Save workload</button><span class="msg" id="m0" role="status"></span></div></div></section>
+<section id="s1"><div class="panel"><h2>Resource Planning</h2><div style="overflow-x:auto"><table id="vt"></table></div>
+<div class="row" style="margin-top:10px"><button class="b s" id="addv">Add VM</button><button class="b" id="savev">Save VMs and check allocation</button><span class="msg" id="m1" role="status"></span></div>
+<p>Placement rule: VMs lacking the required CPU or memory are excluded; among feasible VMs the lowest normalized load (assigned burst divided by CPU capacity) is chosen. Each VM then schedules its own queue.</p><div id="alloc"></div></div></section>
+<section id="s2"><div class="panel"><h2>Policy Analysis</h2><div class="row"><label>Quantum <input id="q" type="number" min="1" value="2" style="width:60px"></label>
+<label>Switch penalty <input id="pen" type="number" min="0" value="1" style="width:60px"></label><label>Switch threshold <input id="thr" type="number" min="0" max="1" step="0.01" value="0.05" style="width:70px"></label>
+<button class="b" id="an">Analyze with adaptive policy</button><span class="msg" id="m2" role="status"></span></div>
+<p>Slack = deadline - estimated completion; negative slack is a predicted miss. Risk: Likely to Miss (slack below 0), At Risk (slack below the task burst), Low Risk otherwise. Rule-based categories, not probabilities. Policy changes are accepted only if predicted misses fall, or total completion improves beyond the threshold after the penalty is applied.</p>
+<div class="grid"><div><h2>Predicted deadline risk (t=0)</h2><table id="rt"></table></div><div><h2>Decision log</h2><table id="dl"></table></div></div></div></section>
+<section id="s3"><div class="panel"><h2>Live Simulation</h2><div class="row"><label>Policy <select id="sp"></select></label>
+<button class="b" id="st">Start</button><button class="b s" id="pa">Pause</button><button class="b s" id="re">Resume</button><button class="b s" id="sf">Step forward</button><button class="b s" id="rs">Reset</button>
+<label>Delay (ms) <input id="sd" type="range" min="100" max="1500" value="500"></label><span class="msg" id="m3" role="status"></span></div>
+<p><b>Time:</b> <span id="tm">-</span> &nbsp; <b>Policy:</b> <span id="pl">-</span></p><div id="gt"></div>
+<div class="grid"><div><h2>Task status</h2><table id="ts"></table></div><div><h2>Decision log</h2><table id="sl"></table></div></div></div></section>
+<section id="s4"><div class="panel"><h2>Evaluation</h2><div class="row"><button class="b" id="ev">Run experiment</button><button class="b s" id="rp">Repeat last experiment</button><span class="msg" id="m4" role="status"></span></div>
+<div id="evr">No results are available. Run an experiment to view metrics.</div></div></section>
+<section id="s5"><div class="panel"><h2>About Project</h2><p>The Workload Analyzer: Adaptive Cloud Task Scheduler with Deadline-Risk Prediction is an Operating Systems simulation project that studies workload characteristics, CPU scheduling policies, deadline constraints, and virtual-machine resource allocation. It introduces an explainable adaptive scheduling policy that reassesses scheduling decisions using workload analysis and deadline-risk estimates. Its performance is evaluated against conventional scheduling algorithms through controlled experiments.</p>
+<h2>Created By</h2><ul><li>Ayyalasomayajula Akhil - 25MIS0169</li><li>Joel George - 25MIS0180</li><li>Keosha Reddy B - 25MIS0234</li></ul></div></section></main>
+<script>
+const $=id=>document.getElementById(id),F=["id","arrival","burst","priority","deadline","cpu","mem"];
+let tasks=[],vms=[],lastCfg=null,timer=null;
+const api=async(m,u,b)=>{const r=await fetch(u,{method:m,headers:{"Content-Type":"application/json"},body:b===undefined?undefined:JSON.stringify(b)});
+ const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:"Request failed ("+r.status+").");return j};
+const say=(id,t,e)=>{$(id).textContent=t;$(id).className="msg"+(e?" err":"")};
+const cfg=()=>({quantum:+$("q").value,switch_penalty:+$("pen").value,switch_threshold:+$("thr").value});
+const names=["Workload Design","Resource Planning","Policy Analysis","Live Simulation","Evaluation","About Project"];
+names.forEach((n,i)=>{const b=document.createElement("button");b.setAttribute("role","tab");b.textContent=n;b.onclick=()=>show(i);b.id="tab"+i;$("nav").append(b)});
+function show(i){names.forEach((_,k)=>{$("s"+k).classList.toggle("on",k===i);$("tab"+k).setAttribute("aria-selected",k===i)})}
+function ed(tb,rows,keys,del){tb.innerHTML="<tr>"+keys.map(k=>`<th>${k}</th>`).join("")+"<th></th></tr>";
+ rows.forEach((r,i)=>{const tr=tb.insertRow();keys.forEach(k=>{const c=tr.insertCell(),n=document.createElement("input");n.value=r[k];n.setAttribute("aria-label",k+" row "+(i+1));if(k==="id")n.className="id";
+ n.oninput=()=>r[k]=n.value;c.append(n)});const c=tr.insertCell(),d=document.createElement("button");d.className="b s";d.textContent="Delete";d.onclick=()=>{rows.splice(i,1);del()};c.append(d);
+ const dp=document.createElement("button");dp.className="b s";dp.textContent="Duplicate";dp.onclick=()=>{rows.splice(i+1,0,{...r,id:r.id+"-copy"});del()};c.append(dp)})}
+const rt=()=>ed($("tt"),tasks,F,rt),rv=()=>ed($("vt"),vms,["id","cpu","mem"],rv);
+const tbl=(el,h,rows)=>el.innerHTML="<tr>"+h.map(x=>`<th>${x}</th>`).join("")+"</tr>"+rows.map(r=>"<tr>"+r.map(x=>`<td>${x}</td>`).join("")+"</tr>").join("");
+async function init(){const s=await api("GET","/api/state");tasks=s.tasks;vms=s.vms;rt();rv();
+ $("pre").innerHTML=s.presets.map(p=>`<option>${p}</option>`).join("");$("sp").innerHTML=s.policies.map(p=>`<option>${p}</option>`).join("");$("sp").value="ADAPTIVE";stat();show(0)}
+const stat=()=>$("stat").textContent=`${tasks.length} tasks, ${vms.length} VMs`;
+$("loadp").onclick=async()=>{try{tasks=(await api("POST","/api/presets/"+encodeURIComponent($("pre").value))).tasks;rt();stat();say("m0","Sample workload loaded: "+$("pre").value+".")}catch(e){say("m0",e.message,1)}};
+$("addt").onclick=()=>{tasks.push({id:"T"+(tasks.length+1),arrival:0,burst:1,priority:1,deadline:10,cpu:1,mem:1});rt()};
+$("addv").onclick=()=>{vms.push({id:"VM-"+(vms.length+1),cpu:4,mem:4});rv()};
+$("savew").onclick=async()=>{try{const r=await api("PUT","/api/workload",tasks);say("m0","Workload saved: "+r.count+" tasks.");stat()}catch(e){say("m0",e.message,1)}};
+$("savev").onclick=async()=>{try{await api("PUT","/api/vms",vms);const a=await api("POST","/api/allocate");stat();say("m1","VM configuration saved.");
+ $("alloc").innerHTML="<table id=at></table>"+(a.unallocated.length?"<p class=err>"+a.unallocated.map(u=>u.id+": "+u.reason).join("<br>")+"</p>":"");
+ tbl($("at"),["Task","Allocation reason"],Object.keys(a.assign).map(k=>[k,a.why[k]]))}catch(e){say("m1",e.message,1)}};
+$("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(tasks,null,2)]));a.download="workload.json";a.click()};
+$("imp").onchange=async e=>{try{tasks=JSON.parse(await e.target.files[0].text());rt();say("m0","Workload imported. Save to apply.")}catch(x){say("m0","Import failed: invalid JSON file.",1)}};
+$("an").onclick=async()=>{try{const r=await api("POST","/api/run",{policy:"ADAPTIVE",config:cfg()});
+ tbl($("rt"),["Task","VM","Est. completion","Slack","Risk"],r.predicted_risk.map(x=>[x.id,x.vm,x.estimated_completion,x.slack,`<span class="t-${x.risk}">${x.risk}</span>`]));
+ tbl($("dl"),["Time","VM","Event","Class","Detail"],r.decisions.map(d=>[d.time,d.vm,d.type+": "+(d.from||"-")+" to "+d.to,d.workload_class,d.reason]));
+ say("m2","Analysis completed.")}catch(e){say("m2",e.message,1)}};
+function draw(s){$("tm").textContent=s.t;$("pl").textContent=Object.entries(s.policy).map(([v,p])=>v+": "+(p||"-")).join(", ");
+ $("gt").innerHTML=Object.entries(s.gantt).map(([v,tr])=>`<div class="gantt"><div class="l">${v}</div>`+tr.map(x=>`<div class="c ${x.task?"":"i"}" title="${x.task||"idle"}">${x.task||""}</div>`).join("")+"</div>").join("");
+ tbl($("ts"),["Task","Status"],Object.entries(s.status));tbl($("sl"),["Time","VM","Event","Detail"],s.decisions.map(d=>[d.time,d.vm,d.type+": "+(d.from||"-")+" to "+d.to,d.reason]));
+ if(s.finished){clearInterval(timer);say("m3","Simulation completed. Misses: "+s.summary.deadline_misses+", makespan: "+s.summary.makespan+".")}}
+const stepIt=async()=>{try{draw(await api("POST","/api/sim/step",{}))}catch(e){clearInterval(timer);say("m3",e.message,1)}};
+const play=()=>{clearInterval(timer);timer=setInterval(stepIt,+$("sd").value)};
+$("st").onclick=async()=>{try{clearInterval(timer);draw(await api("POST","/api/sim/start",{policy:$("sp").value,config:cfg()}));say("m3","Simulation started.");play()}catch(e){say("m3",e.message,1)}};
+$("pa").onclick=()=>clearInterval(timer);$("re").onclick=play;$("sf").onclick=()=>{clearInterval(timer);stepIt()};
+$("rs").onclick=async()=>{clearInterval(timer);await api("POST","/api/sim/reset");$("gt").innerHTML="";$("tm").textContent="-";say("m3","Simulation reset. Workload and VM configuration are unchanged.")};
+const M=[["avg_waiting","Avg waiting"],["avg_turnaround","Avg turnaround"],["avg_response","Avg response"],["makespan","Makespan"],["deadline_misses","Deadline misses"],["miss_rate","Miss rate"],["cpu_utilization","CPU utilization"],["context_switches","Context switches"],["policy_switches","Policy switches"],["switching_overhead","Switching overhead"]];
+async function runEv(c){try{const x=await api("POST","/api/evaluate",{config:c});lastCfg=c;const P=Object.keys(x.results);
+ let h=`<p>Experiment ${x.id}: ${x.tasks.length} tasks, ${x.vms.length} VMs, quantum ${x.config.quantum}, switch penalty ${x.config.switch_penalty}, threshold ${x.config.switch_threshold}.</p><div style="overflow-x:auto"><table><tr><th>Metric</th>`+P.map(p=>`<th>${p}</th>`).join("")+"</tr>";
+ M.forEach(([k,n])=>h+=`<tr><td>${n}</td>`+P.map(p=>`<td>${x.results[p][k]}</td>`).join("")+"</tr>");h+="</table></div>";
+ h+="<h2 style='margin-top:14px'>Deadline misses and average waiting time</h2>";
+ const mx=Math.max(1,...P.map(p=>x.results[p].avg_waiting));
+ P.forEach(p=>{const r=x.results[p];h+=`<div>${p.padEnd(9,"\u00a0")} <span class="bar a" style="width:${r.deadline_misses*30}px"></span> ${r.deadline_misses} misses &nbsp; <span class="bar" style="width:${r.avg_waiting/mx*200}px"></span> ${r.avg_waiting}</div>`});
+ const a=x.results.ADAPTIVE,b=P.filter(p=>p!=="ADAPTIVE"),bm=Math.min(...b.map(p=>x.results[p].deadline_misses)),bw=Math.min(...b.map(p=>x.results[p].avg_waiting));
+ h+=`<p>Observed: adaptive recorded ${a.deadline_misses} misses (best baseline ${bm}) and average waiting ${a.avg_waiting} (best baseline ${bw}). These figures apply to this workload only.</p>`;$("evr").innerHTML=h;say("m4","Experiment completed.")}catch(e){say("m4",e.message,1)}}
+$("ev").onclick=()=>runEv(cfg());$("rp").onclick=()=>lastCfg?runEv(lastCfg):say("m4","No previous experiment to repeat.",1);
+init().catch(e=>$("stat").textContent=e.message);
+</script></body></html>
